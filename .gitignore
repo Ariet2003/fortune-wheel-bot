@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual Environment
+venv/
+.env
+.env.local
+*.venv
+
+# Logs
+logs/
+*.log
+
+# Dependency management
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.iml
+
+# Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# MyPy cache
+.mypy_cache/
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage reports
+.coverage
+htmlcov/
+*.cover
+*.py,cover
+
+# Docker
+docker-compose.override.yml
+
+# System-specific files
+.DS_Store
+Thumbs.db
+
+# Database
+*.sqlite3
+*.db
+
+# Custom secrets or config files
+config.json
+config.yaml
+data/
+
+# PyInstaller
+*.spec
+dist/
+build/
+
+# AIogram FSM storage
+*.fsm
+
+# Cache & Temp files
+*.swp
+*.swo
+*.tmp
+tmp/
