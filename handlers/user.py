@@ -11,39 +11,70 @@ db = Database()
 class RegistrationStates(StatesGroup):
     waiting_for_name = State()
     waiting_for_grade = State()
+    last_message_id = State()  # Для хранения ID последнего сообщения
 
 @router.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     # Проверяем, является ли пользователь админом
     is_admin = await db.is_admin(message.from_user.id)
     if is_admin:
-        await message.answer(
+        msg = await message.answer(
             "Добро пожаловать в панель администратора!",
             reply_markup=get_admin_keyboard()
         )
+        await state.update_data(last_message_id=msg.message_id)
         return
 
     user = await db.get_user(message.from_user.id)
     if user:
-        await message.answer("С возвращением! Ожидайте начала розыгрыша.", 
-                           reply_markup=get_play_keyboard())
+        msg = await message.answer(
+            "С возвращением! Ожидайте начала розыгрыша.", 
+            reply_markup=get_play_keyboard()
+        )
+        await state.update_data(last_message_id=msg.message_id)
         return
 
-    await message.answer("Добро пожаловать в игру Колесо Фортуны! 🎡\nПожалуйста, введите ваше ФИО:")
+    msg = await message.answer("Добро пожаловать в игру Колесо Фортуны! 🎡\nПожалуйста, введите ваше ФИО:")
     await state.set_state(RegistrationStates.waiting_for_name)
+    await state.update_data(last_message_id=msg.message_id)
 
 @router.message(RegistrationStates.waiting_for_name)
 async def process_name(message: types.Message, state: FSMContext):
+    # Удаляем предыдущее сообщение бота
+    state_data = await state.get_data()
+    try:
+        await message.bot.delete_message(
+            message.chat.id,
+            state_data.get("last_message_id")
+        )
+    except:
+        pass
+    
+    await message.delete()
     await state.update_data(full_name=message.text)
-    await message.answer("Выберите ваш класс:", reply_markup=get_grade_keyboard())
+    msg = await message.answer("Выберите ваш класс:", reply_markup=get_grade_keyboard())
+    await state.update_data(last_message_id=msg.message_id)
     await state.set_state(RegistrationStates.waiting_for_grade)
 
 @router.message(RegistrationStates.waiting_for_grade)
 async def process_grade(message: types.Message, state: FSMContext):
     if message.text not in ["9", "10", "11"]:
-        await message.answer("Пожалуйста, выберите класс из предложенных вариантов (9, 10, 11)")
+        await message.delete()
+        msg = await message.answer("Пожалуйста, выберите класс из предложенных вариантов (9, 10, 11)")
+        await state.update_data(last_message_id=msg.message_id)
         return
 
+    # Удаляем предыдущее сообщение бота
+    state_data = await state.get_data()
+    try:
+        await message.bot.delete_message(
+            message.chat.id,
+            state_data.get("last_message_id")
+        )
+    except:
+        pass
+
+    await message.delete()
     user_data = await state.get_data()
     await db.add_user(
         user_id=message.from_user.id,
@@ -52,33 +83,48 @@ async def process_grade(message: types.Message, state: FSMContext):
     )
 
     # Отправляем приветственное сообщение с готовой картинкой
-    await message.answer_photo(
+    msg = await message.answer_photo(
         photo="AgACAgIAAxkBAAIFMWfqgqR8W7mBaZETXrNNf94QRqCvAAJf-DEbFOFQS-irnZf24pu8AQADAgADeAADNgQ",
-        caption=f"Добро пожаловать, {user_data['full_name']}!\nРегистрация завершена! Ожидайте начала розыгрыша.",
+        caption=f"Добро пожаловать, {user_data['full_name']}!\nРегистрация завершена! Нажмите кнопку 'Играть', чтобы участвовать в розыгрыше.",
         reply_markup=get_play_keyboard()
     )
+    await state.update_data(last_message_id=msg.message_id)
     await state.clear()
+
+@router.callback_query(F.data == "play_game")
+async def play_game(callback: types.CallbackQuery):
+    await callback.message.edit_caption(
+        caption="🎡 Вы участвуете в розыгрыше!\nОжидайте, когда администратор начнет игру...",
+        reply_markup=None
+    )
+    await callback.answer("Вы успешно зарегистрированы в розыгрыше!")
 
 @router.callback_query(F.data == "check_prize")
 async def check_prize(callback: types.CallbackQuery):
     prize = await db.get_winner_prize(callback.from_user.id)
     if prize:
-        await callback.message.answer(
-            f"Поздравляем! Ваш выигрыш: {prize['prize_name']}"
+        text = f"🎉 Поздравляем!\nВаш выигрыш: {prize['prize_name']}"
+    else:
+        text = "К сожалению, вы пока ничего не выиграли."
+
+    # Проверяем, есть ли у сообщения caption (если это фото)
+    if callback.message.photo:
+        await callback.message.edit_caption(
+            caption=text,
+            reply_markup=None
         )
     else:
-        await callback.message.answer("К сожалению, вы пока ничего не выиграли.")
-    await callback.answer() 
+        await callback.message.edit_text(
+            text=text,
+            reply_markup=None
+        )
+    await callback.answer()
 
-#Хендлер для обработки команды "/photo"
 @router.message(Command("photo"))
 async def request_photo_handler(message: types.Message):
     await message.answer("Пожалуйста, отправьте фото, чтобы я мог получить его ID.")
 
-
-# Хендлер для обработки фото от пользователя
 @router.message(F.photo)
 async def photo_handler(message: types.Message):
-    # Берем фотографию в самом большом разрешении и получаем ее ID
     photo_id = message.photo[-1].file_id
-    await message.answer(f"ID вашей картинки: {photo_id}")
+    await message.answer(f"ID вашей картинки: {photo_id}")

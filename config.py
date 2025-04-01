@@ -16,7 +16,7 @@ def load_config() -> Config:
     )
 
 PRIZES = {
-    "discount_10": {"name": "Сертификат на скидку 10%", "quantity": 20},
+    "discount_10": {"name": "Сертификат на скидку 10%", "quantity": 20, "grade": "11"},
     "mug": {"name": "Кружка", "quantity": 5},
     "notebook": {"name": "Блокнот", "quantity": 5},
     "pen": {"name": "Ручка", "quantity": 5},
