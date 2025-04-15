@@ -120,11 +120,11 @@ async def check_prize(callback: types.CallbackQuery):
         )
     await callback.answer()
 
-@router.message(Command("photo"))
-async def request_photo_handler(message: types.Message):
-    await message.answer("Пожалуйста, отправьте фото, чтобы я мог получить его ID.")
-
-@router.message(F.photo)
-async def photo_handler(message: types.Message):
-    photo_id = message.photo[-1].file_id
-    await message.answer(f"ID вашей картинки: {photo_id}")
+# @router.message(Command("photo"))
+# async def request_photo_handler(message: types.Message):
+#     await message.answer("Пожалуйста, отправьте фото, чтобы я мог получить его ID.")
+#
+# @router.message(F.photo)
+# async def photo_handler(message: types.Message):
+#     photo_id = message.photo[-1].file_id
+#     await message.answer(f"ID вашей картинки: {photo_id}")
